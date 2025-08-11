@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 
 # local imports
 from database import database, engine, metadata, cache, get_cache, set_cache, CACHE_EXPIRY_LLM, CACHE_EXPIRY_MOVIE, CACHE_EXPIRY_TREND
-from models import admin_users, settings as settings_table
+from models import admin_users, metadata, settings as settings_table
 
 load_dotenv()
 
@@ -72,20 +72,20 @@ class CardSettingsUpdate(BaseModel):
 
 # ------------------ Auth helpers ------------------
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    \"\"\"Verify a plaintext password against a bcrypt hash.\"\"\"
+    """Verify a plaintext password against a bcrypt hash."""
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    \"\"\"Create a bcrypt hash of `password` for safe storage.\"\"\"
+    """Create a bcrypt hash of `password` for safe storage."""
     return pwd_context.hash(password)
 
 async def get_admin_user(username: str):
-    \"\"\"Return admin user DB row or None.\"\"\"
+    """Return admin user DB row or None."""
     q = admin_users.select().where(admin_users.c.username == username)
     return await database.fetch_one(q)
 
 async def authenticate_admin(username: str, password: str):
-    \"\"\"Authenticate admin credentials. Return user row if ok, otherwise False.\"\"\"
+    """Authenticate admin credentials. Return user row if ok, otherwise False."""
     user = await get_admin_user(username)
     if not user:
         return False
@@ -94,7 +94,7 @@ async def authenticate_admin(username: str, password: str):
     return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    \"\"\"Create a signed JWT token with expiration; include `sub` (subject) as username.\"\"\"
+    """Create a signed JWT token with expiration; include `sub` (subject) as username."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -105,7 +105,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 async def get_current_admin(token: str = Depends(oauth2_scheme)):
-    \"\"\"Dependency that decodes a JWT and returns the admin DB row. Raises 401 on failure.\"\"\"
+    """Dependency that decodes a JWT and returns the admin DB row. Raises 401 on failure."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -126,24 +126,34 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)):
 # ------------------ Startup/shutdown events ------------------
 @app.on_event("startup")
 async def startup():
-    \"\"\"Connect to the database and ensure a default admin exists for dev convenience.\"\"\"
+    """Connect to the database, create tables, and ensure a default admin exists for dev convenience."""
+    
+    # Create all tables in the DB if they don't exist yet
+    async with engine.begin() as conn:
+        await conn.run_sync(metadata.create_all)
+    print("✅ Database tables created or verified successfully.")
+    
+    # Connect to the database (your existing code)
     await database.connect()
+    
+    # Check if any admin user exists
     q = admin_users.select().limit(1)
     existing = await database.fetch_one(q)
+    
     if not existing:
         # Default admin: change immediately after first login.
         hashed = get_password_hash("admin123")
         await database.execute(admin_users.insert().values(username="admin", hashed_password=hashed))
-        print(\"Created default admin 'admin' with password 'admin123'. Change ASAP.\")
+        print("Created default admin 'admin' with password 'admin123'. Change ASAP.")
 
 @app.on_event("shutdown")
 async def shutdown():
-    \"\"\"Disconnect from the database cleanly on shutdown.\"\"\"
+    """Disconnect from the database cleanly on shutdown."""
     await database.disconnect()
 
 # ------------------ Ratings aggregation ------------------
 def normalize_imdb(value: Optional[str]) -> Optional[float]:
-    \"\"\"IMDb rating from OMDb comes like '7.4/10' — normalize to 0-100 numeric scale.\"\"\"
+    """IMDb rating from OMDb comes like '7.4/10' — normalize to 0-100 numeric scale."""
     if not value:
         return None
     try:
@@ -155,7 +165,7 @@ def normalize_imdb(value: Optional[str]) -> Optional[float]:
         return None
 
 def normalize_rt(value: Optional[str]) -> Optional[float]:
-    \"\"\"Rotten Tomatoes value is like '95%' — remove % and return numeric 0-100.\"\"\"
+    """Rotten Tomatoes value is like '95%' — remove % and return numeric 0-100."""
     if not value:
         return None
     try:
@@ -164,7 +174,7 @@ def normalize_rt(value: Optional[str]) -> Optional[float]:
         return None
 
 def normalize_tmdb(value: Optional[float]) -> Optional[float]:
-    \"\"\"TMDb vote_average is 0-10 float; scale to 0-100.\"\"\"
+    """TMDb vote_average is 0-10 float; scale to 0-100."""
     if value is None:
         return None
     try:
@@ -173,7 +183,7 @@ def normalize_tmdb(value: Optional[float]) -> Optional[float]:
         return None
 
 def aggregate_ratings(tmdb_score: Optional[float], imdb: Optional[str], rt: Optional[str]) -> Dict[str, Any]:
-    \"\"\"Combine available ratings into a weighted average and return breakdown.
+    """Combine available ratings into a weighted average and return breakdown.
 
     Weights (tunable):
       - TMDb: 0.2 (since it's community-driven)
@@ -182,7 +192,7 @@ def aggregate_ratings(tmdb_score: Optional[float], imdb: Optional[str], rt: Opti
 
     We compute a weighted mean only using available sources.
     Result 'aggregated' is 0-100.
-    \"\"\"
+    """
     weights = {"tmdb": 0.2, "imdb": 0.5, "rt": 0.3}
     vals = {}
     tmdb_n = normalize_tmdb(tmdb_score)
@@ -207,7 +217,7 @@ def aggregate_ratings(tmdb_score: Optional[float], imdb: Optional[str], rt: Opti
 
 # ------------------ TMDb provider lookup (cached) ------------------
 async def get_tmdb_providers(tmdb_id: int, media_type: str = "movie", region: str = DEFAULT_PROVIDER_REGION):
-    \"\"\"Query TMDb watch/providers endpoint and cache the result per id+region.\"\"\"
+    """Query TMDb watch/providers endpoint and cache the result per id+region."""
     key = f"providers_{media_type}_{tmdb_id}_{region}"
     cached = await get_cache(database, key, CACHE_EXPIRY_MOVIE)
     if cached:
@@ -237,13 +247,13 @@ async def get_tmdb_providers(tmdb_id: int, media_type: str = "movie", region: st
 # ------------------ Autosuggest endpoint (improved) ------------------
 @app.get("/suggest")
 async def suggest(query: str = Query(..., min_length=2)):
-    \"\"\"Provide quick autosuggest results.
+    """Provide quick autosuggest results.
 
     Strategy:
       1. If we have a cached LLM suggestion for this query, return it.
       2. Otherwise, try TMDb search (fast) and return top titles as suggestions.
       3. Cache results for a short period.
-    \"\"\"
+    """
     qnorm = query.strip().lower()
     cache_key = f"suggest_{hashlib.sha256(qnorm.encode()).hexdigest()}"
     cached = await get_cache(database, cache_key, timedelta(hours=6))
@@ -270,7 +280,7 @@ async def suggest(query: str = Query(..., min_length=2)):
         if llm_cached:
             suggestions = llm_cached
         else:
-            prompt = f\"Give 6 short streaming search suggestions for: '{query}' (comma separated).\" 
+            prompt = f"Give 6 short streaming search suggestions for: '{query}' (comma separated)." 
             headers = {"Authorization": f"Bearer {HF_API_TOKEN}", "Content-Type": "application/json"}
             payload = {"inputs": prompt, "parameters": {"max_new_tokens": 50, "temperature": 0.7}}
             async with httpx.AsyncClient() as client:
@@ -289,12 +299,12 @@ async def suggest(query: str = Query(..., min_length=2)):
 @app.get("/search")
 async def search_movies(query: Optional[str] = None, platform: Optional[str] = None, genre: Optional[str] = None,
                         language: Optional[str] = None, country: Optional[str] = None, page: int = 1):
-    \"\"\"Search TMDb and enrich results with OMDb ratings + provider info.
+    """Search TMDb and enrich results with OMDb ratings + provider info.
 
     Pagination:
       - `page` maps to TMDb pages. TMDb returns 20 items per page; we keep that behavior here.
       - We limit to top 100 results by default (client can paginate).
-    \"\"\"
+    """
     if not TMDB_API_KEY or not OMDB_API_KEY:
         raise HTTPException(status_code=500, detail="TMDb or OMDb API keys missing")
     # Use TMDb search multi endpoint
@@ -435,3 +445,4 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user["username"]}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"}
+
