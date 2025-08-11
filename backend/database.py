@@ -10,17 +10,20 @@ To switch to Postgres, set DATABASE_URL to a postgres connection string and ensu
 import os, json
 from databases import Database
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy import MetaData, Table, Column, String, DateTime, Text
+from sqlalchemy import create_engine, MetaData, Table, Column, String, DateTime, Text
 from datetime import datetime, timedelta
 
 # Read DB URL from environment; default to a local SQLite file for convenience.
-DATABASE_URL = os.getenv('DATABASE_URL', "sqlite:///./bingeworthy.db")
+DATABASE_URL = os.getenv('DATABASE_URL', "sqlite+aiosqlite:///./bingeworthy.db")
 
 # `database` is the async interface used throughout the app (await database.fetch_one(...))
 database = Database(DATABASE_URL)
 
 # `engine` is the synchronous engine used by SQLAlchemy for schema creation and Alembic.
-engine = create_async_engine(DATABASE_URL, echo=True)
+async_engine = create_async_engine(DATABASE_URL, echo=True)
+# Sync engine used for metadata.create_all()
+sync_engine = create_engine(DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://"))
+
 
 # Metadata object collects tables so Alembic can access them for migrations.
 metadata = MetaData()

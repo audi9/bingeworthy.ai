@@ -1,9 +1,9 @@
 from models import metadata  # import your metadata from models.py or wherever defined
-from database import engine
+from database import async_engine
 import asyncio
 
 async def create_tables():
-    async with engine.begin() as conn:
+    async with async_engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
     print("Tables created successfully!")
 

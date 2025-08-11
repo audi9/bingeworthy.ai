@@ -30,8 +30,8 @@ from slugify import slugify  # used to create stable cache keys for titles
 from dotenv import load_dotenv
 
 # local imports
-from database import database, engine, metadata, cache, get_cache, set_cache, CACHE_EXPIRY_LLM, CACHE_EXPIRY_MOVIE, CACHE_EXPIRY_TREND
-from models import admin_users, metadata, settings as settings_table
+from database import database, async_engine, sync_engine, metadata, cache, get_cache, set_cache, CACHE_EXPIRY_LLM, CACHE_EXPIRY_MOVIE, CACHE_EXPIRY_TREND
+from models import admin_users, settings as settings_table
 
 load_dotenv()
 
@@ -48,11 +48,8 @@ DEFAULT_PROVIDER_REGION = os.getenv("DEFAULT_PROVIDER_REGION", "US")
 # ------------------ App and utilities ------------------
 app = FastAPI(title="Bingeworthy AI Backend (Detailed)")
 
-# Create tables if missing (simple dev convenience; production should use alembic migrations)
-metadata.create_all(engine)
-
 # Password hashing context (bcrypt)
-pwd_context = PasslibContext = CryptContext(schemes=["bcrypt"], deprecated="auto")  # type: ignore
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # type: ignore
 
 # OAuth2 scheme to extract Bearer token from Authorization header
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/admin/token")
@@ -129,7 +126,7 @@ async def startup():
     """Connect to the database, create tables, and ensure a default admin exists for dev convenience."""
     
     # Create all tables in the DB if they don't exist yet
-    async with engine.begin() as conn:
+    async with async_engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
     print("✅ Database tables created or verified successfully.")
     
