@@ -1,22 +1,18 @@
-
 {
   "name": "bingeworthy-frontend",
   "version": "1.0.0",
-  "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "next": "14.0.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "axios": "^1.4.0",
-    "tailwindcss": "^4.0.0",
-    "postcss": "^8.4.0",
-    "autoprefixer": "^10.4.0",
-    "clsx": "^1.2.1",
-    "lodash.debounce": "^4.0.8"
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "@chakra-ui/react": "^2.7.1",
+    "@emotion/react": "^11",
+    "@emotion/styled": "^11",
+    "framer-motion": "^7"
   }
 }
