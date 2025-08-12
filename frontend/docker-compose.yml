@@ -1,0 +1,61 @@
+# Docker Compose configuration for local development
+# Run with: docker-compose up -d
+version: '3.8'
+
+services:
+  # Main Next.js application
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Database connection (using PostgreSQL)
+      - DATABASE_URL=postgresql://postgres:password@db:5432/bingeworthy
+      
+      # API Keys (replace with your actual keys)
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Admin credentials
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=your-secure-password
+      - JWT_SECRET=your-jwt-secret-key
+      
+      # App configuration
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - NODE_ENV=production
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  # PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=bingeworthy
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

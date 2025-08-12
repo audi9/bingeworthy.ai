@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "TMDB_API_KEY": "@tmdb-api-key",
+    "HUGGINGFACE_API_KEY": "@huggingface-api-key",
+    "GROQ_API_KEY": "@groq-api-key",
+    "OPENAI_API_KEY": "@openai-api-key",
+    "ADMIN_USERNAME": "@admin-username",
+    "ADMIN_PASSWORD": "@admin-password",
+    "JWT_SECRET": "@jwt-secret"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}

@@ -1,22 +1,31 @@
+# Bingeworthy.ai - Integrated Repo
 
-bingeworthy.ai - Updated project with detailed comments, autosuggest improvements, ratings aggregation and pagination.
+This repository contains a Next.js frontend (from your uploaded UI) and a FastAPI backend.
 
-Key updates:
-- Backend: detailed comments, ratings aggregation, pagination, suggest endpoint, Postgres-ready Alembic migration uses Text column for cache.
-- Frontend: client-side debounce for search input (reduces calls), pagination controls, suggest endpoint usage.
+## Quick start (local)
 
-Run backend locally:
+### Backend
+```
 cd backend
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate   # Windows: .\.venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env  # edit .env with your API keys and SECRET_KEY
+cp ../.env.example .env    # edit values (TMDB_API_KEY, OMDB_API_KEY, DATABASE_URL)
 uvicorn app:app --reload --port 8000
+```
 
-Run frontend locally:
+### Frontend (Next.js app)
+```
 cd frontend
+# install using npm or pnpm as the extracted UI expects pnpm; using npm is fine
 npm install
-echo "NEXT_PUBLIC_API_BASE=http://localhost:8000" > .env.local
+# create .env.local with:
+# NEXT_PUBLIC_API_BASE=https://bingeworthy-ai.onrender.com
+# NEXT_PUBLIC_TMDB_API_KEY=YOUR_TMDB_KEY_HERE (frontend doesn't require TMDB key since backend returns poster/trailer)
 npm run dev
+```
 
-Default admin on first run: admin / admin123 (change immediately)
+## Deploy
+- Backend: Deploy `backend/` on Render as a Python web service. Set env vars from .env.example.
+- Frontend: Deploy `frontend/` on Vercel. Set `NEXT_PUBLIC_API_BASE` to https://bingeworthy-ai.onrender.com
+
