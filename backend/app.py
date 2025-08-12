@@ -111,7 +111,7 @@ async def startup():
     if not existing:
         hashed = get_password_hash('admin123')
         await database.execute(admin_users.insert().values(username='admin', hashed_password=hashed))
-        print(\"Created default admin 'admin' with password 'admin123'. Change ASAP.\")
+        print("Created default admin 'admin' with password 'admin123'. Change ASAP.")
 
 @app.on_event('shutdown')
 async def shutdown():
@@ -167,13 +167,13 @@ def aggregate_ratings(tmdb_score: Optional[float], imdb: Optional[str], rt: Opti
     return {'aggregated': aggregated, 'breakdown': vals}
 
 async def get_tmdb_providers(tmdb_id: int, media_type: str = 'movie', region: str = DEFAULT_PROVIDER_REGION):
-    key = f\"providers_{media_type}_{tmdb_id}_{region}\"
+    key = f"providers_{media_type}_{tmdb_id}_{region}"
     cached = await get_cache(database, key, CACHE_EXPIRY_MOVIE)
     if cached:
         return cached
     if not TMDB_API_KEY:
         return {'providers': [], 'link': None}
-    url = f\"https://api.themoviedb.org/3/{'movie' if media_type == 'movie' else 'tv'}/{tmdb_id}/watch/providers\"
+    url = f"https://api.themoviedb.org/3/{'movie' if media_type == 'movie' else 'tv'}/{tmdb_id}/watch/providers"
     params = {'api_key': TMDB_API_KEY}
     async with httpx.AsyncClient() as client:
         resp = await client.get(url, params=params, timeout=10)
@@ -200,7 +200,7 @@ async def ping():
 @app.get('/suggest')
 async def suggest(query: str = Query(..., min_length=2)):
     qnorm = query.strip().lower()
-    cache_key = f\"suggest_{hashlib.sha256(qnorm.encode()).hexdigest()}\"
+    cache_key = f"suggest_{hashlib.sha256(qnorm.encode()).hexdigest()}"
     cached = await get_cache(database, cache_key, timedelta(hours=6))
     if cached:
         return {'source':'cache','suggestions':cached}
@@ -217,12 +217,12 @@ async def suggest(query: str = Query(..., min_length=2)):
                     if title and title not in suggestions:
                         suggestions.append(title)
     if not suggestions and HF_API_TOKEN:
-        llm_key = f\"llm_suggest_{hashlib.sha256(query.lower().encode()).hexdigest()}\"
+        llm_key = f"llm_suggest_{hashlib.sha256(query.lower().encode()).hexdigest()}"
         llm_cached = await get_cache(database, llm_key, CACHE_EXPIRY_LLM)
         if llm_cached:
             suggestions = llm_cached
         else:
-            prompt = f\"Give 6 short streaming search suggestions for: '{query}' (comma separated).\"
+            prompt = f"Give 6 short streaming search suggestions for: '{query}' (comma separated)."
             headers = {'Authorization': f'Bearer {HF_API_TOKEN}', 'Content-Type': 'application/json'}
             payload = {'inputs': prompt, 'parameters': {'max_new_tokens': 50, 'temperature': 0.7}}
             async with httpx.AsyncClient() as client:
@@ -254,7 +254,7 @@ async def search_movies(query: Optional[str] = None, platform: Optional[str] = N
             year = (item.get('release_date') or item.get('first_air_date') or '')[:4]
             tmdb_id = item.get('id')
             media_type = item.get('media_type') or ('movie' if item.get('title') else 'tv')
-            cache_key = f\"movie_detail_{media_type}_{tmdb_id}\"
+            cache_key = f"movie_detail_{media_type}_{tmdb_id}"
             cached = await get_cache(database, cache_key, CACHE_EXPIRY_MOVIE)
             if cached:
                 results.append(cached)
